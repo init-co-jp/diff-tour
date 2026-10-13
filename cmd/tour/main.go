@@ -31,7 +31,7 @@ const usage = `usage:
 
 options:
   --repo <path>   repository to read (default: current directory)
-  --lang en|ja    language for this run only
+  --lang en|ja|zh language for this run only
   --dump          print every step to stdout instead of opening the TUI
   --cols, --rows  screen size for --dump (default 100x30)
   --plain         --dump without colors

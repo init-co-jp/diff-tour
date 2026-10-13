@@ -57,6 +57,7 @@ type Stats struct {
 }
 
 var languageRules = map[i18n.Lang]string{
+	i18n.ZH: "全部文字使用简体中文。用短句，表达直白，像资深工程师口头讲解。代码标识符、文件名、命令、SQL 和通用技术术语保留原文，不翻译。不要混入日文用词或日文标点（如「」『』）。中文与英文、数字之间加空格。tour 译为导览，step 译为步骤，chapter 译为章，Verified 译为已验证，From the code 译为从代码推断，Senior view 译为资深视角，Example 译为示例，must fix 译为必须修改，suggestion 译为建议，nit 译为细节，question 译为疑问，branch 译为分支，base、head、commit 和按键名保留原文。用中文全角标点，引号用“”，不用敬称，不用感叹号。",
 	i18n.EN: "Write all text in English. Use short, plain sentences.",
 	i18n.JA: "文章は日本語。です・ます調ではなく、短い常体（「〜している」「〜になる」）で書く。",
 }

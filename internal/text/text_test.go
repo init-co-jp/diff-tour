@@ -73,3 +73,19 @@ func TestParseInline(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+// TestWrapChinesePunctuation checks that closing Chinese punctuation wraps with the text before it and nothing is lost.
+func TestWrapChinesePunctuation(t *testing.T) {
+	for _, mark := range "，。、；：！？）》〉”’】〕］｝〗〙〛…" {
+		source := "甲乙丙丁" + string(mark) + "戊己"
+		got := plain(Wrap([]Span{{Text: source}}, 8))
+		if strings.Join(got, "") != source {
+			t.Errorf("wrap lost text: %q", got)
+		}
+		for _, line := range got {
+			if strings.HasPrefix(line, string(mark)) || Width(line) > 8 {
+				t.Errorf("invalid line for %c: %q", mark, got)
+			}
+		}
+	}
+}

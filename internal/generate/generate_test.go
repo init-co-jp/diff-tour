@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/init-co-jp/diff-tour/internal/git"
 	"github.com/init-co-jp/diff-tour/internal/i18n"
+	"github.com/init-co-jp/diff-tour/internal/tour"
 )
 
 func TestExtractJSON(t *testing.T) {
@@ -44,7 +46,7 @@ func TestBuildPrompt(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(p, languageRules[lang]) {
+		if languageRules[lang] == "" || !strings.Contains(p, languageRules[lang]) {
 			t.Errorf("%s: language rule missing", lang)
 		}
 		if strings.Contains(p, "{{") {
@@ -70,5 +72,34 @@ func TestWriteLessons(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, m[1])); err != nil {
 			t.Errorf("prompt names %s, which is not in the workspace", m[1])
 		}
+	}
+}
+
+// TestAskPromptLanguages checks that answers to a question use the chosen language too.
+func TestAskPromptLanguages(t *testing.T) {
+	q := Question{Tour: &tour.Tour{Chapters: []tour.Chapter{{Steps: []tour.Step{{Title: "当前步骤"}}}}}, Text: "为什么？"}
+	for _, lang := range i18n.Langs {
+		p, err := askPrompt(Request{Base: "main", Head: "feature", Lang: lang}, q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if languageRules[lang] == "" || !strings.Contains(p, languageRules[lang]) || strings.Contains(p, "{{") {
+			t.Errorf("%s: missing or unexpanded language rule", lang)
+		}
+	}
+}
+
+// TestCacheKeyLanguages checks that tours in different languages do not share a cache entry.
+func TestCacheKeyLanguages(t *testing.T) {
+	dir := t.TempDir()
+	run(t, dir, "init", "-q", "-b", "main")
+	run(t, dir, "commit", "--allow-empty", "-q", "-m", "base")
+	seen := map[string]i18n.Lang{}
+	for _, lang := range i18n.Langs {
+		key := CacheKey(git.Open(dir), "main", "main", lang, "test")
+		if previous, ok := seen[key]; ok {
+			t.Errorf("%s and %s share cache key %s", previous, lang, key)
+		}
+		seen[key] = lang
 	}
 }

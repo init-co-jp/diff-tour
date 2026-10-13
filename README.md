@@ -273,7 +273,7 @@ export TOUR_EDITOR='code -g {file}:{line}'
 
 If the file on disk differs from the commit being toured, `tour` opens a read-only copy from the cache instead, so you see the code the tour talks about.
 
-**Language.** English and Japanese. `tour setup` changes it, and `tour --lang ja` changes it for one run.
+**Language.** English, Japanese, and Simplified Chinese. `tour setup` changes it, and `tour --lang ja` or `tour --lang zh` changes it for one run.
 
 ## FAQ
 

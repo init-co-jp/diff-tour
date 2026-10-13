@@ -182,8 +182,8 @@ func ParseInline(s, base string) []Span {
 	return spans
 }
 
-// noLineStart lists characters that must not start a line (kinsoku, Japanese line-breaking rules). They stick to the preceding unit and wrap together with it.
-const noLineStart = "、。，．）」』】〕！？：；・ー…’”)]}.,!?:;"
+// noLineStart lists characters that must not start a line (Chinese and Japanese line-breaking rules). They stick to the preceding unit and wrap together with it.
+const noLineStart = "、。，．）》〉］｝〗〙〛」』】〕！？：；・ー…’”)]}.,!?:;"
 
 // unit is the smallest piece Wrap never splits. It can span several styles, e.g. code followed by a period.
 type unit struct {

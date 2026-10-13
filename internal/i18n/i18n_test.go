@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,13 @@ func TestDetect(t *testing.T) {
 	}{
 		{"", "ja_JP.UTF-8", JA},
 		{"", "en_US.UTF-8", EN},
+		{"", "zh_CN.UTF-8", ZH},
+		{"", "zh_TW.UTF-8", ZH},
+		{"", "ZH_HK.UTF-8", ZH},
+		{"", "zh-Hant.UTF-8", ZH},
+		{"", "zh", ZH},
+		{"zh_SG.UTF-8", "en_US.UTF-8", ZH},
+		{"en_US.UTF-8", "zh_CN.UTF-8", EN},
 		{"", "fr_FR.UTF-8", EN}, // unsupported languages fall back to English
 		{"C", "ja_JP.UTF-8", JA},
 		{"en_US.UTF-8", "ja_JP.UTF-8", EN}, // LC_ALL takes precedence
@@ -31,15 +39,67 @@ func TestDetect(t *testing.T) {
 	}
 }
 
-func TestEveryMessageHasJapanese(t *testing.T) {
-	for k := range messages[EN] {
-		if _, ok := messages[JA][k]; !ok {
-			t.Errorf("missing ja message: %s", k)
+// TestTranslatedMessages checks that every language has every message, with the same format verbs as English.
+func TestTranslatedMessages(t *testing.T) {
+	placeholder := regexp.MustCompile(`%[^a-zA-Z%]*[a-zA-Z%]`)
+	for _, lang := range Langs[1:] {
+		if len(messages[lang]) != len(messages[EN]) {
+			t.Errorf("%s: key count = %d, want %d", lang, len(messages[lang]), len(messages[EN]))
+		}
+		for key, en := range messages[EN] {
+			translated, ok := messages[lang][key]
+			if !ok {
+				t.Errorf("%s: missing message: %s", lang, key)
+				continue
+			}
+			if translated == "" {
+				t.Errorf("%s: empty message: %s", lang, key)
+			}
+			want := placeholder.FindAllString(en, -1)
+			got := placeholder.FindAllString(translated, -1)
+			if !slices.Equal(got, want) {
+				t.Errorf("%s %s: placeholders = %v, want %v", lang, key, got, want)
+			}
 		}
 	}
 }
 
-// Every message key used in the source code must exist in both the English and Japanese tables (so a raw key never shows up on screen)
+// TestParse checks the Chinese aliases and keeps the English and Japanese behavior.
+func TestParse(t *testing.T) {
+	for _, c := range []struct {
+		input string
+		want  Lang
+		ok    bool
+	}{
+		{"en", EN, true}, {"EN", EN, true}, {"ja", JA, true}, {"JA", JA, true},
+		{"zh", ZH, true}, {"ZH", ZH, true}, {"zh-CN", ZH, true}, {"ZH-cn", ZH, true},
+		{"zh_CN", ZH, true}, {"ZH_cn", ZH, true}, {"zh-Hans", ZH, true}, {"ZH-hANS", ZH, true},
+		{"", EN, false}, {"fr", EN, false}, {"en-US", EN, false}, {"ja_JP", EN, false},
+	} {
+		if got, ok := Parse(c.input); got != c.want || ok != c.ok {
+			t.Errorf("Parse(%q) = %s, %t; want %s, %t", c.input, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+// TestLanguageChoices fixes the order of the choices in setup and the name of Chinese.
+func TestLanguageChoices(t *testing.T) {
+	if !slices.Equal(Langs, []Lang{EN, JA, ZH}) || ZH.Name() != "简体中文" {
+		t.Fatalf("choices = %v, ZH name = %q", Langs, ZH.Name())
+	}
+}
+
+// TestDetectMessages checks that LC_MESSAGES wins over LANG and is reported as the source.
+func TestDetectMessages(t *testing.T) {
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "zh_TW.UTF-8")
+	t.Setenv("LANG", "ja_JP.UTF-8")
+	if got, source := Detect(); got != ZH || source != "LC_MESSAGES=zh_TW.UTF-8" {
+		t.Fatalf("Detect() = %s, %q", got, source)
+	}
+}
+
+// Every language needs the messages in use, so the screen never shows a raw key.
 func TestUsedKeysExist(t *testing.T) {
 	re := regexp.MustCompile(`i18n\.T\("([a-zA-Z.]+)"|"(setup\.[a-zA-Z]+)(?:[:|"])`)
 	err := filepath.WalkDir("../..", func(path string, d fs.DirEntry, err error) error {
