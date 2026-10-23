@@ -32,7 +32,7 @@ const usage = `usage:
 options:
   --repo <path>   repository to read (default: current directory)
   --lang <lang>   language for this run only: en, ja, zh (Simplified Chinese),
-                  zh-Hant (Traditional Chinese) or es
+                  zh-Hant (Traditional Chinese), es or ru
   --dump          print every step to stdout instead of opening the TUI
   --cols, --rows  screen size for --dump (default 100x30)
   --plain         --dump without colors

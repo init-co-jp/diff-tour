@@ -315,7 +315,7 @@ export TOUR_EDITOR='code -g {file}:{line}'
 
 If the file on disk differs from the commit being toured, `tour` opens a read-only copy from the cache instead, so you see the code the tour talks about.
 
-**Language.** English, Japanese, Simplified Chinese (`zh`), Traditional Chinese (`zh-Hant`, worded for Taiwan) and Spanish (`es`). The screens and the tours use it. `tour setup` changes it, and `tour --lang ja` changes it for one run. In Taiwan, Hong Kong and Macau, Traditional Chinese is picked from your locale.
+**Language.** English, Japanese, Simplified Chinese (`zh`), Traditional Chinese (`zh-Hant`, worded for Taiwan), Spanish (`es`) and Russian (`ru`). The screens and the tours use it. `tour setup` changes it, and `tour --lang ja` changes it for one run. In Taiwan, Hong Kong and Macau, Traditional Chinese is picked from your locale.
 
 ## FAQ
 

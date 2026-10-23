@@ -61,6 +61,7 @@ var languageRules = map[i18n.Lang]string{
 	i18n.JA:     "文章は日本語。です・ます調ではなく、短い常体（「〜している」「〜になる」）で書く。",
 	i18n.ZH:     "全部文字使用简体中文，用短句，表达直白。代码标识符、文件名、命令和通用技术术语保留原文。中文与英文、数字之间加空格。用中文全角标点，引号用“”，不用日文用词和「」。",
 	i18n.ES:     "Escribe todo el texto en español neutro, con frases cortas y claras. Deja sin traducir los identificadores, los nombres de archivo, los comandos y los términos técnicos de uso habitual.",
+	i18n.RU:     "Пиши весь текст по-русски, короткими и простыми фразами, без канцелярита. Не переводи идентификаторы, имена файлов, команды и привычные технические термины. Кавычки — «ёлочки».",
 	i18n.ZHHant: "全部文字使用繁體中文，用詞依台灣習慣（程式碼、檔案、資料表、設定）。用短句，表達直白。程式碼識別字、檔名、指令和通用技術術語保留原文。中文與英文、數字之間加空格。用全形標點，引號用「」，不用日文用詞。",
 }
 
