@@ -1,11 +1,16 @@
 package generate
 
 import (
+	"archive/tar"
+	"bytes"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/init-co-jp/diff-tour/internal/git"
 )
@@ -70,5 +75,64 @@ func TestPrepareWorkspace(t *testing.T) {
 	}
 	if after := run(t, repoDir, "status", "--porcelain") + run(t, repoDir, "log", "--all", "--oneline"); after != before {
 		t.Errorf("repository changed:\n%s\n---\n%s", before, after)
+	}
+}
+
+// archiveFrom serves a tar the way git archive does: padded past the end-of-archive marker,
+// through a pipe with no buffer, so the writer exits only once everything has been read
+// (on Windows the pipe from git holds only about 4 KiB).
+func archiveFrom(t *testing.T, files map[string]string) (io.ReadCloser, func() error) {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for name, content := range files {
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
+			t.Fatal(err)
+		}
+		tw.Write([]byte(content))
+	}
+	tw.Close()
+	buf.Write(make([]byte, 10240))
+	r, w := io.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		_, err := w.Write(buf.Bytes())
+		w.Close()
+		done <- err
+	}()
+	wait := func() error {
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(5 * time.Second):
+			return errors.New("the writer never finished (the archive was not read to the end)")
+		}
+	}
+	return r, wait
+}
+
+func TestExtractArchiveReadsToTheEnd(t *testing.T) {
+	r, wait := archiveFrom(t, map[string]string{"src/a.txt": "a\n"})
+	dir := t.TempDir()
+	if err := extractArchive(r, wait, dir); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "src/a.txt")); err != nil || string(b) != "a\n" {
+		t.Errorf("a.txt = %q, %v", b, err)
+	}
+}
+
+func TestExtractArchiveWaitsOnError(t *testing.T) {
+	r, wait := archiveFrom(t, map[string]string{"src/a.txt": "a\n"})
+	dir := t.TempDir()
+	// A file where the directory should go makes MkdirAll fail.
+	write(t, filepath.Join(dir, "src"), "")
+	waited := false
+	err := extractArchive(r, func() error { waited = true; return wait() }, dir)
+	if err == nil {
+		t.Fatal("no error")
+	}
+	if !waited {
+		t.Error("returned without waiting for git")
 	}
 }

@@ -66,6 +66,18 @@ func extract(repo *git.Repo, ref, dir string) error {
 	if err != nil {
 		return err
 	}
+	return extractArchive(r, wait, dir)
+}
+
+// extractArchive writes the regular files and directories of the tar stream r into dir, then waits for git.
+// git is always waited for, even on an error, so that it never stays blocked writing to the pipe.
+func extractArchive(r io.ReadCloser, wait func() error, dir string) (err error) {
+	defer func() {
+		r.Close()
+		if werr := wait(); err == nil {
+			err = werr
+		}
+	}()
 	tr := tar.NewReader(r)
 	for {
 		h, err := tr.Next()
@@ -73,8 +85,6 @@ func extract(repo *git.Repo, ref, dir string) error {
 			break
 		}
 		if err != nil {
-			r.Close()
-			wait()
 			return err
 		}
 		// Reject paths that point outside the destination.
@@ -104,7 +114,10 @@ func extract(repo *git.Repo, ref, dir string) error {
 			// Do not export symlinks and the like (so nothing outside the working directory can be read).
 		}
 	}
-	return wait()
+	// tar.Reader stops at the end-of-archive marker, but git pads the archive to a whole 10 KiB record after it.
+	// Read that too: a pipe on Windows holds only about 4 KiB, so git would block writing the rest and never exit.
+	_, err = io.Copy(io.Discard, r)
+	return err
 }
 
 // copyWorktree exports the working-tree files that may be read (tracked ones and untracked ones that are not ignored).

@@ -42,7 +42,10 @@ func (c ClaudeCode) Name() string { return "Claude Code" }
 //	--strict-mcp-config         loads no MCP servers
 //	--tools Read,Grep,Glob      limits the available tools to the three read-only ones
 //	--permission-mode dontAsk   denies, without asking, any operation that needs confirmation
-func claudeArgs(prompt string) []string {
+//
+// The prompt goes in on stdin rather than as an argument: on Windows, claude installed with npm is claude.cmd,
+// which runs through cmd.exe, and cmd.exe cuts command lines at 8191 characters.
+func claudeArgs() []string {
 	return []string{
 		"-p",
 		"--restricted", "--strict-mcp-config",
@@ -50,7 +53,6 @@ func claudeArgs(prompt string) []string {
 		"--permission-mode", "dontAsk", "--permission-prompts", "none",
 		"--no-session-persistence",
 		"--output-format", "stream-json", "--verbose",
-		prompt,
 	}
 }
 
@@ -73,8 +75,9 @@ func (c ClaudeCode) Run(ctx context.Context, dir, prompt string, events func(Eve
 	if bin == "" {
 		bin = "claude"
 	}
-	cmd := exec.CommandContext(ctx, bin, claudeArgs(prompt)...)
+	cmd := exec.CommandContext(ctx, bin, claudeArgs()...)
 	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader(prompt)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
