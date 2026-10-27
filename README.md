@@ -13,7 +13,7 @@ Walk through a diff the way a senior engineer reads it.
 <sub>A tour of <a href="https://github.com/init-co-jp/diff-tour-example/tree/feature/coupons">a branch that adds coupons</a>: what the change is for, how the usage limit is enforced, a question to think about, and the answer: applying a coupon twice to one order uses it up twice.</sub>
 
 > [!NOTE]
-> diff-tour is an early release. The tour format and the screens may still change.
+> diff-tour is growing fast. The tour format and the screens may still change from release to release.
 
 ## Quick start
 
@@ -33,6 +33,14 @@ Then it goes like this:
 4. **The tour**: **→** goes forward, **←** goes back, **q** quits.
 
 If `tour` is not found, add the line the install script printed to your shell profile.
+
+To see a finished tour first, with no LLM and no sign-in, play the one from the GIF. It opens at once:
+
+```sh
+git clone https://github.com/init-co-jp/diff-tour-example && cd diff-tour-example
+curl -fsSLO https://raw.githubusercontent.com/init-co-jp/diff-tour/main/tours/example-coupons.en.json
+tour example-coupons.en.json
+```
 
 Other ways to install are in [Install](#install), and an example repository to try is in [First run](#first-run).
 

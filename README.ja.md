@@ -13,7 +13,7 @@
 <sub><a href="https://github.com/init-co-jp/diff-tour-example/tree/feature/coupons">クーポンを足すブランチ</a>のツアーです。何のための変更かを確かめ、利用回数の上限をどう守っているかを見て、問いを考え、答えを読みます（同じ注文に同じクーポンを 2 回当てると、2 回分使われてしまう）。</sub>
 
 > [!NOTE]
-> diff-tour は公開したばかりです。ツアーの形式や画面は、これからも変わることがあります。
+> diff-tour は活発に育てています。ツアーの形式や画面は、リリースごとに変わることがあります。
 
 ## クイックスタート
 
@@ -33,6 +33,14 @@ tour
 4. **ツアーを見る**：**→** で進み、**←** で戻ります。**q** で終わります。
 
 `tour` が見つからないと言われたら、インストールのスクリプトが表示した 1 行をシェルの設定に足してください。
+
+先に完成したツアーを見たいときは、GIF のツアーを再生できます。LLM もログインも要らず、すぐに開きます。
+
+```sh
+git clone https://github.com/init-co-jp/diff-tour-example && cd diff-tour-example
+curl -fsSLO https://raw.githubusercontent.com/init-co-jp/diff-tour/main/tours/example-coupons.ja.json
+tour example-coupons.ja.json
+```
 
 ほかの入れ方は「[インストール](#インストール)」に、試しに使える例のリポジトリは「[初回の流れ](#初回の流れ)」にあります。
 
