@@ -17,7 +17,7 @@ Walk through a diff the way a senior engineer reads it.
 
 ## Quick start
 
-You need git and one of [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenCode](https://opencode.ai) 2 or [Copilot CLI](https://github.com/github/copilot-cli), signed in.
+You need git and one of [Claude Code](https://claude.com/claude-code), [Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [OpenCode](https://opencode.ai) 2, [Copilot CLI](https://github.com/github/copilot-cli) or [Pi](https://pi.dev), signed in.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/init-co-jp/diff-tour/main/install.sh | sh
@@ -57,7 +57,7 @@ AI can write code that works. It does not teach you *why* the code is written th
 
 This view comes from what experienced engineers have written down about reading and reviewing code, collected in [`internal/generate/lessons`](internal/generate/lessons) (in Japanese). The LLM reads it before every tour.
 
-The tour is written by an LLM you already use: Claude Code, Codex CLI, Gemini CLI, OpenCode or Copilot CLI. `tour` is read-only. It never changes your files or your repository.
+The tour is written by an LLM you already use: Claude Code, Codex CLI, Gemini CLI, OpenCode, Copilot CLI or Pi. `tour` is read-only. It never changes your files or your repository.
 
 ## How it works
 
@@ -71,7 +71,7 @@ The tour is written by an LLM you already use: Claude Code, Codex CLI, Gemini CL
  (built into tour)   ──────────────────▶  lessons/       what senior engineers have learned
                                                  │
                                                  ▼
-                      Claude Code / Codex / Gemini / OpenCode / Copilot, started in that directory
+                      Claude Code / Codex / Gemini / OpenCode / Copilot / Pi, started in that directory
                       with read-only permissions. It reads, then writes the
                       tour as JSON.
                                                  │
@@ -101,7 +101,7 @@ Sending your code to an LLM is a real decision, so here is exactly what happens.
 - the prompt in [`internal/generate/prompts`](internal/generate/prompts)
 - when you press <kbd>?</kbd>: your question and the whole tour, with the same files
 
-They go to the provider of that tool (Anthropic, OpenAI, Google or GitHub; with OpenCode, the provider of the model you use), under the terms of your account with them. `tour` itself makes no network requests, has no server, and collects no telemetry.
+They go to the provider of that tool (Anthropic, OpenAI, Google or GitHub; with OpenCode and Pi, the provider of the model you use), under the terms of your account with them. `tour` itself makes no network requests, has no server, and collects no telemetry.
 
 **Not possible for the LLM:**
 
@@ -191,6 +191,25 @@ Settings managed by your organization still apply.
 Source: [`internal/generate/copilot.go`](internal/generate/copilot.go)
 </details>
 
+<details>
+<summary><b>Pi</b>: four read tools, held inside the export directory by tour's own extension</summary>
+
+```text
+pi -p --mode json --tools read,grep,find,ls --no-extensions -e <tour's guard>
+   --no-mcp --no-skills --no-context-files --no-prompt-templates --no-themes
+   --no-session --no-approve --offline
+```
+
+- `--tools` leaves only `read`, `grep`, `find` and `ls`: no shell, no file changes
+- Pi has no permissions or sandbox of its own, and its read tools accept any path. So `tour` loads its own small extension with `-e` ([`pi-guard.ts`](internal/generate/pi-guard.ts)). It refuses every other tool, and every path outside the export directory (`..`, absolute paths, `~`, symlinks). If it cannot check a call, it refuses it
+- `--no-extensions` loads none of your extensions or Pi's built-in ones (MCP, codemode, tool search); only `tour`'s guard. `--no-mcp`, `--no-skills` and `--no-prompt-templates` keep the rest of your Pi add-ons out, and `--no-context-files` skips `AGENTS.md` and `CLAUDE.md`
+- `--no-approve` does not trust the repository's `.pi` directory, so its settings, extensions and MCP servers are not loaded. `--no-session` saves nothing. `--offline` and `PI_TELEMETRY=0` turn off update checks, downloads and telemetry
+- Your sign-in and chosen model are read from your Pi directory (`~/.pi/agent`) as usual
+
+Only Pi 1.5 and later 1.x versions are used. Older versions lack some of these flags, and Pi ignores long flags it does not know; a new major version may change the extension API the guard relies on.
+Source: [`internal/generate/pi.go`](internal/generate/pi.go)
+</details>
+
 The LLM still reads your code, so text in the code can try to steer what it writes (prompt injection). With these permissions it cannot act on that. Still, a tour is an explanation, not a guarantee: check what it says against the code it shows.
 
 ## Install
@@ -241,12 +260,15 @@ You need git and one of these, installed and signed in:
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini --version` | run `gemini` once |
 | [OpenCode](https://opencode.ai) 2 | `opencode --version` (2.0 or later), or `opencode2 --version` | `opencode auth login` |
 | [Copilot CLI](https://github.com/github/copilot-cli) | `copilot --version` | `copilot login` |
+| [Pi](https://pi.dev) | `pi --version` (1.5 or a later 1.x) | run `pi`, then `/login` |
 
 Gemini CLI support is experimental. Its read-only setup was tested against the real Gemini CLI, but a full tour has not yet been written with a real Gemini model. If it fails, please [open an issue](https://github.com/init-co-jp/diff-tour/issues).
 
 OpenCode support is new. A full tour was written with OpenCode 2.0.29 and one of its free models on Linux, but not yet on macOS or Windows.
 
 Copilot CLI support is experimental. Its read-only setup was tested against the real Copilot CLI 1.0.98 on Linux, driven by a scripted stand-in model, but a full tour has not yet been written with a real Copilot model. If it fails, please [open an issue](https://github.com/init-co-jp/diff-tour/issues).
+
+Pi support is experimental. Its read-only setup was tested against the real Pi 1.5.0 on Linux, driven by a scripted stand-in model that tried to read outside the export directory in every way the read tools allow, but a full tour has not yet been written with a real model through Pi. If it fails, please [open an issue](https://github.com/init-co-jp/diff-tour/issues).
 
 Then, in a repository:
 
@@ -328,7 +350,7 @@ If the file on disk differs from the commit being toured, `tour` opens a read-on
 ## FAQ
 
 **How much does a tour cost?**
-It runs on your own Claude Code, Codex, Gemini, OpenCode or Copilot plan. With Claude Code, one tour of a change of about 250 lines used the equivalent of $1.00 to $1.50 at API prices. Opening a saved tour again costs nothing.
+It runs on your own Claude Code, Codex, Gemini, OpenCode, Copilot or Pi plan. With Claude Code, one tour of a change of about 250 lines used the equivalent of $1.00 to $1.50 at API prices. Opening a saved tour again costs nothing.
 
 **Why does it take minutes?**
 Before writing, the LLM reads the files around the change, not only the diff. That reading is what lets the tour explain code that did not change.

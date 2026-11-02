@@ -34,6 +34,7 @@ func DetectLLMs() []LLMOption {
 		command("gemini", "Gemini CLI", "gemini"),
 		openCode(),
 		command("copilot", "Copilot CLI", "copilot"),
+		pi(),
 	}
 }
 
@@ -45,6 +46,18 @@ func openCode() LLMOption {
 		o.Available, o.Status = true, "setup.found"
 	case errors.Is(err, generate.ErrOpenCodeV1):
 		o.Status = "setup.needsV2"
+	}
+	return o
+}
+
+// pi is found only in a version tour has been checked against (1.5 or a later 1.x).
+func pi() LLMOption {
+	o := LLMOption{ID: "pi", Name: "Pi", Status: "setup.notFound"}
+	switch _, err := generate.FindPi(); {
+	case err == nil:
+		o.Available, o.Status = true, "setup.found"
+	case errors.Is(err, generate.ErrPiVersion):
+		o.Status = "setup.piVersion"
 	}
 	return o
 }

@@ -11,7 +11,7 @@ import (
 
 type Config struct {
 	Lang string `json:"lang"`
-	// claude-code / codex / gemini / opencode / copilot. Empty means not configured
+	// claude-code / codex / gemini / opencode / copilot / pi. Empty means not configured
 	LLM string `json:"llm"`
 }
 

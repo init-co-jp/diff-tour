@@ -17,7 +17,7 @@
 
 ## クイックスタート
 
-git と、[Claude Code](https://claude.com/claude-code)、[Codex CLI](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenCode](https://opencode.ai) 2、[Copilot CLI](https://github.com/github/copilot-cli) のどれか 1 つ（ログイン済みのもの）が必要です。
+git と、[Claude Code](https://claude.com/claude-code)、[Codex CLI](https://github.com/openai/codex)、[Gemini CLI](https://github.com/google-gemini/gemini-cli)、[OpenCode](https://opencode.ai) 2、[Copilot CLI](https://github.com/github/copilot-cli)、[Pi](https://pi.dev) のどれか 1 つ（ログイン済みのもの）が必要です。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/init-co-jp/diff-tour/main/install.sh | sh
@@ -57,7 +57,7 @@ AI に頼めば、動くコードはできます。でも、なぜそう書い�
 
 この見方は、経験を積んだエンジニアがコードの読み方やレビューについて書き残してきたことを、[`internal/generate/lessons`](internal/generate/lessons) にまとめたものに基づきます。LLM はツアーを書くたびに、これを読みます。
 
-ツアーを書くのは、ふだん使っている LLM（Claude Code、Codex CLI、Gemini CLI、OpenCode、Copilot CLI）です。`tour` は読み取り専用で、ファイルもリポジトリも書き換えません。
+ツアーを書くのは、ふだん使っている LLM（Claude Code、Codex CLI、Gemini CLI、OpenCode、Copilot CLI、Pi）です。`tour` は読み取り専用で、ファイルもリポジトリも書き換えません。
 
 ## 仕組み
 
@@ -71,7 +71,7 @@ AI に頼めば、動くコードはできます。でも、なぜそう書い�
  (built into tour)   ──────────────────▶  lessons/       what senior engineers have learned
                                                  │
                                                  ▼
-                      Claude Code / Codex / Gemini / OpenCode / Copilot, started in that directory
+                      Claude Code / Codex / Gemini / OpenCode / Copilot / Pi, started in that directory
                       with read-only permissions. It reads, then writes the
                       tour as JSON.
                                                  │
@@ -101,7 +101,7 @@ AI に頼めば、動くコードはできます。でも、なぜそう書い�
 - [`internal/generate/prompts`](internal/generate/prompts) にあるプロンプト
 - <kbd>?</kbd> を押したとき：あなたの質問と、ツアーの全体（ファイルは上と同じもの）
 
-送り先は、そのツールの提供元（Anthropic、OpenAI、Google、GitHub。OpenCode なら、使っているモデルの提供元）で、あなたのアカウントの利用規約に従います。`tour` 自身はネットワークに一切つながず、サーバーも持たず、利用状況も集めません。
+送り先は、そのツールの提供元（Anthropic、OpenAI、Google、GitHub。OpenCode と Pi なら、使っているモデルの提供元）で、あなたのアカウントの利用規約に従います。`tour` 自身はネットワークに一切つながず、サーバーも持たず、利用状況も集めません。
 
 **LLM にはできないこと：**
 
@@ -191,6 +191,25 @@ copilot --available-tools=view,grep,rg,glob --deny-tool=shell --deny-tool=write
 ソース：[`internal/generate/copilot.go`](internal/generate/copilot.go)
 </details>
 
+<details>
+<summary><b>Pi</b>：読むための 4 つの道具だけ。`tour` 自前の拡張で、書き出したディレクトリの中に閉じ込める</summary>
+
+```text
+pi -p --mode json --tools read,grep,find,ls --no-extensions -e <tour's guard>
+   --no-mcp --no-skills --no-context-files --no-prompt-templates --no-themes
+   --no-session --no-approve --offline
+```
+
+- `--tools`：使える道具を `read`、`grep`、`find`、`ls` だけにする。シェルもファイルの変更もない
+- Pi には権限やサンドボックスの仕組みがなく、読む道具はどんなパスでも受け付ける。そこで `tour` は自前の小さな拡張（[`pi-guard.ts`](internal/generate/pi-guard.ts)）を `-e` で読み込ませる。ほかの道具の呼び出しと、書き出したディレクトリの外を指すパス（`..`、絶対パス、`~`、シンボリックリンク）をすべて断る。確かめられない呼び出しも断る
+- `--no-extensions`：あなたの拡張も Pi に組み込みの拡張（MCP、codemode、tool search）も読み込まず、`tour` の拡張だけを読み込む。`--no-mcp`、`--no-skills`、`--no-prompt-templates` でほかの追加機能も読み込まず、`--no-context-files` で `AGENTS.md` と `CLAUDE.md` も読まない
+- `--no-approve`：リポジトリの `.pi` ディレクトリを信用しないので、その設定、拡張、MCP サーバーは読み込まない。`--no-session` で何も保存しない。`--offline` と `PI_TELEMETRY=0` で、更新の確認、ダウンロード、利用状況の送信を切る
+- ログイン情報と選んでいるモデルは、いつもどおり Pi のディレクトリ（`~/.pi/agent`）から読む
+
+使うのは Pi 1.5 以降の 1.x だけです。古い版にはここにあるフラグの一部がなく、Pi は知らない長いフラグを黙って無視します。次のメジャー版では、守りが頼る拡張の仕組みが変わるかもしれません。
+ソース：[`internal/generate/pi.go`](internal/generate/pi.go)
+</details>
+
 それでも LLM はあなたのコードを読みます。コードの中の文章が、LLM の書く内容をねじ曲げようとすることはありえます（プロンプトインジェクション）。上の権限があるので、LLM がそれに従って何かを実行することはできません。とはいえ、ツアーはあくまで説明で、保証ではありません。書いてあることは、画面のコードと照らし合わせて確かめてください。
 
 ## インストール
@@ -241,12 +260,15 @@ git と、次のどれか 1 つ（インストールしてログイン済みの�
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `gemini --version` | `gemini` を一度起動する |
 | [OpenCode](https://opencode.ai) 2 | `opencode --version`（2.0 以降）、または `opencode2 --version` | `opencode auth login` |
 | [Copilot CLI](https://github.com/github/copilot-cli) | `copilot --version` | `copilot login` |
+| [Pi](https://pi.dev) | `pi --version`（1.5 以降の 1.x） | `pi` を起動して `/login` |
 
 Gemini CLI への対応は試験的なものです。読み取り専用で動くことは本物の Gemini CLI で確かめましたが、本物の Gemini のモデルでツアーを最後まで作ったことはまだありません。うまく動かないときは [Issue](https://github.com/init-co-jp/diff-tour/issues) で教えてください。
 
 OpenCode への対応は始めたばかりです。Linux で、OpenCode 2.0.29 とその無料のモデルを使ってツアーを最後まで作れることは確かめましたが、macOS と Windows ではまだ試していません。
 
 Copilot CLI への対応は試験的なものです。読み取り専用で動くことは、Linux の本物の Copilot CLI 1.0.98 に、決めた動きをする代わりのモデルをつないで確かめましたが、本物の Copilot のモデルでツアーを最後まで作ったことはまだありません。うまく動かないときは [Issue](https://github.com/init-co-jp/diff-tour/issues) で教えてください。
+
+Pi への対応は試験的なものです。読み取り専用で動くことは、Linux の本物の Pi 1.5.0 に、決めた動きをする代わりのモデルをつないで確かめました（読む道具でできるあらゆるやり方で、書き出したディレクトリの外を読もうとさせ、すべて断られることを確かめています）。本物のモデルで Pi を通してツアーを最後まで作ったことはまだありません。うまく動かないときは [Issue](https://github.com/init-co-jp/diff-tour/issues) で教えてください。
 
 あとは、リポジトリの中で実行するだけです。
 
@@ -328,7 +350,7 @@ export TOUR_EDITOR='code -g {file}:{line}'
 ## よくある質問
 
 **1 回にいくらかかりますか？**
-あなたの Claude Code、Codex、Gemini、OpenCode、Copilot のプランの中で動きます。Claude Code で約 250 行の変更をツアーにしたときは、API の料金に換算して 1 回 $1.00〜$1.50 ほどでした。保存したツアーを開き直すのには、費用はかかりません。
+あなたの Claude Code、Codex、Gemini、OpenCode、Copilot、Pi のプランの中で動きます。Claude Code で約 250 行の変更をツアーにしたときは、API の料金に換算して 1 回 $1.00〜$1.50 ほどでした。保存したツアーを開き直すのには、費用はかかりません。
 
 **なぜ数分もかかるのですか？**
 LLM は書き始める前に、差分だけでなく、変更のまわりのファイルも読みます。その下調べがあるから、変更していないコードまで説明できます。

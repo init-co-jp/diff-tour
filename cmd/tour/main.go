@@ -255,6 +255,8 @@ func backendFor(llm string) (generate.Backend, error) {
 		return generate.OpenCode{}, nil
 	case "copilot":
 		return generate.Copilot{}, nil
+	case "pi":
+		return generate.Pi{}, nil
 	case "":
 		return nil, fmt.Errorf("%s", i18n.T("err.noLLM"))
 	}
