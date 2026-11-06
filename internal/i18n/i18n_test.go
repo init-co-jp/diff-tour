@@ -29,6 +29,9 @@ func TestDetect(t *testing.T) {
 		{"", "es_MX.UTF-8", ES},
 		{"", "ru_RU.UTF-8", RU},
 		{"ru_UA.UTF-8", "en_US.UTF-8", RU},
+		{"", "pt_BR.UTF-8", PTBR},
+		{"", "pt_PT.UTF-8", PTBR}, // other Portuguese locales get Brazilian Portuguese too
+		{"pt_BR.UTF-8", "en_US.UTF-8", PTBR},
 		{"", "fr_FR.UTF-8", EN}, // unsupported languages fall back to English
 		{"C", "ja_JP.UTF-8", JA},
 		{"en_US.UTF-8", "ja_JP.UTF-8", EN}, // LC_ALL takes precedence
@@ -82,6 +85,7 @@ func TestParse(t *testing.T) {
 		{"zh-Hant", ZHHant, true}, {"ZH-HANT", ZHHant, true}, {"zh-TW", ZHHant, true}, {"zh_tw", ZHHant, true},
 		{"zh-HK", ZHHant, true}, {"zh_MO", ZHHant, true}, {"zh-Hant-HK", ZHHant, true}, {"zh-Hans-TW", ZH, true},
 		{"zhx", EN, false}, {"es", ES, true}, {"ES", ES, true}, {"ru", RU, true}, {"RU", RU, true},
+		{"pt-BR", PTBR, true}, {"pt-br", PTBR, true}, {"pt_BR", PTBR, true}, {"pt", PTBR, true}, {"pt-PT", PTBR, true}, {"ptx", EN, false},
 		{"", EN, false}, {"fr", EN, false}, {"en-US", EN, false}, {"ja_JP", EN, false},
 	} {
 		if got, ok := Parse(c.input); got != c.want || ok != c.ok {
@@ -90,10 +94,10 @@ func TestParse(t *testing.T) {
 	}
 }
 
-// TestLanguageChoices fixes the order of the choices in setup and the names of Chinese, Spanish and Russian.
+// TestLanguageChoices fixes the order of the choices in setup and the names of Chinese, Spanish, Russian and Portuguese.
 func TestLanguageChoices(t *testing.T) {
-	if !slices.Equal(Langs, []Lang{EN, JA, ZH, ZHHant, ES, RU}) || ZH.Name() != "简体中文" || ZHHant.Name() != "繁體中文" || ES.Name() != "Español" || RU.Name() != "Русский" {
-		t.Fatalf("choices = %v, names = %q, %q, %q, %q", Langs, ZH.Name(), ZHHant.Name(), ES.Name(), RU.Name())
+	if !slices.Equal(Langs, []Lang{EN, JA, ZH, ZHHant, ES, RU, PTBR}) || ZH.Name() != "简体中文" || ZHHant.Name() != "繁體中文" || ES.Name() != "Español" || RU.Name() != "Русский" || PTBR.Name() != "Português (Brasil)" {
+		t.Fatalf("choices = %v, names = %q, %q, %q, %q, %q", Langs, ZH.Name(), ZHHant.Name(), ES.Name(), RU.Name(), PTBR.Name())
 	}
 }
 

@@ -1,0 +1,795 @@
+{
+  "version": 1,
+  "title": "Cupons no checkout: o que conta como um \"uso\"",
+  "base": "main",
+  "head": "feature/coupons",
+  "chapters": [
+    {
+      "title": "A mudança",
+      "steps": [
+        {
+          "title": "O que vamos ler",
+          "blocks": [
+            {
+              "target": true
+            },
+            {
+              "p": "São dois commits, os dois com coautoria do Claude. O primeiro cria a tabela de cupons e a aplicação do cupom. O segundo liga o desconto ao checkout e abre a rota HTTP.",
+              "basis": "fact"
+            },
+            {
+              "quote": "Apply coupon discounts at checkout and add a coupon API\nPOST /orders/:id/coupon takes a coupon code and attaches a discount to the order. Checkout charges the total minus the discount."
+            },
+            {
+              "p": "A mensagem diz **o quê**, mas não diz o que conta como \"usar\" um cupom. Vamos guardar essa lacuna.",
+              "basis": "fact"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Para que serve a mudança",
+      "steps": [
+        {
+          "title": "Quem deixa de ter um problema",
+          "blocks": [
+            {
+              "p": "Antes, o checkout sempre cobrava `order.totalAmount` inteiro. Não havia nenhuma forma de desconto.",
+              "basis": "fact"
+            },
+            {
+              "p": "Depois, quem ganha é o cliente: ele manda um código e paga menos. Quem opera também ganha: limita quantas vezes o cupom vale (`max_uses`) e até quando (`expires_at`).",
+              "basis": "inferred"
+            },
+            {
+              "p": "Não existe API para criar cupons nesta mudança. Os testes inserem a linha direto no banco com SQL.",
+              "basis": "fact"
+            },
+            {
+              "p": "Hipótese para checar nos próximos capítulos: \"um uso\" significa \"um pedido que usou o cupom\". Se isso não for verdade, o limite de usos não protege o que o operador acha que protege.",
+              "basis": "inferred"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "O mapa",
+      "steps": [
+        {
+          "title": "Onde vale prestar atenção",
+          "asks": [
+            "Por que sqliteOrderRepository.ts é mecânico se mexe no SQL de save?"
+          ],
+          "blocks": [
+            {
+              "files": {
+                "roles": [
+                  {
+                    "file": "src/coupons/couponService.ts",
+                    "role": "core",
+                    "note": "a regra de aplicar o cupom"
+                  },
+                  {
+                    "file": "src/coupons/sqliteCouponRepository.ts",
+                    "role": "core",
+                    "note": "consumeUse: o contador"
+                  },
+                  {
+                    "file": "src/orders/orderService.ts",
+                    "role": "core",
+                    "note": "1 linha: o valor cobrado"
+                  },
+                  {
+                    "file": "db/migrations/002_add_coupons.sql",
+                    "role": "core",
+                    "note": "o que o banco garante"
+                  },
+                  {
+                    "file": "src/handlers/applyCoupon.ts",
+                    "role": "core",
+                    "note": "entrada HTTP e mapa de erros"
+                  },
+                  {
+                    "file": "src/server.ts",
+                    "role": "core",
+                    "note": "rota nova e readJson"
+                  },
+                  {
+                    "file": "src/coupons/coupon.ts",
+                    "role": "mechanical",
+                    "note": "tipo e classes de erro"
+                  },
+                  {
+                    "file": "src/orders/order.ts",
+                    "role": "mechanical",
+                    "note": "dois campos novos"
+                  },
+                  {
+                    "file": "src/orders/sqliteOrderRepository.ts",
+                    "role": "mechanical",
+                    "note": "duas colunas a mais no mesmo padrão"
+                  },
+                  {
+                    "file": "src/app.ts",
+                    "role": "mechanical",
+                    "note": "ligação de dependências"
+                  },
+                  {
+                    "file": "test/couponService.test.ts",
+                    "role": "test"
+                  },
+                  {
+                    "file": "test/orderService.test.ts",
+                    "role": "test",
+                    "note": "1 teste novo + discountAmount: 0"
+                  },
+                  {
+                    "file": "test/reconcilePendingPayments.test.ts",
+                    "role": "test",
+                    "note": "só discountAmount: 0"
+                  },
+                  {
+                    "file": "test/sqliteOrderRepository.test.ts",
+                    "role": "test",
+                    "note": "só discountAmount: 0"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "São cerca de 200 linhas. A atenção vai para umas 40: `apply`, `consumeUse`, a linha do valor em `checkout` e a migração. O resto conferi como mecânico: `toOrder` e `save` ganham as duas colunas no mesmo padrão das outras, e os testes antigos só ganham `discountAmount: 0`.",
+              "basis": "fact"
+            },
+            {
+              "p": "Nenhum valor esperado dos testes antigos mudou. Em código escrito por IA, essa é a primeira coisa a conferir nos testes.",
+              "basis": "fact"
+            }
+          ]
+        },
+        {
+          "title": "O caminho do dinheiro, incluindo o que não mudou",
+          "blocks": [
+            {
+              "flow": {
+                "nodes": [
+                  {
+                    "label": "POST /orders/:id/coupon",
+                    "kind": "changed",
+                    "note": "src/server.ts",
+                    "next": "orderId, body",
+                    "start": true
+                  },
+                  {
+                    "label": "handleApplyCoupon",
+                    "kind": "new",
+                    "note": "src/handlers/applyCoupon.ts",
+                    "next": "orderId, code"
+                  },
+                  {
+                    "label": "CouponService.apply",
+                    "kind": "new",
+                    "note": "src/coupons/couponService.ts",
+                    "next": "consumeUse(code)"
+                  },
+                  {
+                    "label": "coupons: used_count + 1",
+                    "kind": "external",
+                    "next": "save(order)"
+                  },
+                  {
+                    "label": "orders: coupon_code, discount_amount",
+                    "kind": "external"
+                  },
+                  {
+                    "label": "POST /orders/:id/checkout",
+                    "kind": "same",
+                    "note": "src/server.ts",
+                    "start": true
+                  },
+                  {
+                    "label": "OrderService.checkout",
+                    "kind": "changed",
+                    "note": "amount = total - discount",
+                    "next": "idempotencyKey order-\u003cid\u003e"
+                  },
+                  {
+                    "label": "Serviço de pagamento",
+                    "kind": "external"
+                  },
+                  {
+                    "label": "reconcilePendingPayments (a cada 5 min)",
+                    "kind": "same",
+                    "note": "src/jobs/",
+                    "next": "findCharge(order-\u003cid\u003e)",
+                    "start": true
+                  },
+                  {
+                    "label": "Serviço de pagamento",
+                    "kind": "external"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "O cupom e o checkout são duas requisições separadas. Só se encontram no registro do pedido. Por isso precisamos olhar o checkout e o batch, mesmo sem mudança: o desconto gravado num momento vira cobrança em outro.",
+              "basis": "inferred"
+            }
+          ]
+        },
+        {
+          "title": "Fora do diff: a chave de idempotência",
+          "asks": [
+            "O serviço de pagamento guarda também cobranças recusadas pela chave?"
+          ],
+          "blocks": [
+            {
+              "code": {
+                "file": "src/orders/order.ts",
+                "at": "base",
+                "lines": [
+                  17,
+                  19
+                ],
+                "show": [
+                  13,
+                  19
+                ],
+                "note": "sem mudança",
+                "marks": [
+                  {
+                    "line": 18,
+                    "text": "a chave depende só do id do pedido"
+                  }
+                ]
+              }
+            },
+            {
+              "code": {
+                "file": "src/payment/gateway.ts",
+                "lines": [
+                  6,
+                  7
+                ],
+                "show": [
+                  1,
+                  8
+                ],
+                "note": "sem mudança",
+                "marks": [
+                  {
+                    "line": 6,
+                    "text": "mesma chave = mesma cobrança, por 24 h"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "A linha `amount: order.totalAmount - order.discountAmount` só está certa se o serviço de pagamento aceitar o valor que mandamos. E ele decide pela chave. Por isso pulei para cá.",
+              "basis": "inferred"
+            },
+            {
+              "p": "No main, nenhum código altera `totalAmount` de um pedido que já existe. Então cada chave sempre ia com o mesmo valor. Voltamos a isso no capítulo 5.",
+              "basis": "fact"
+            },
+            {
+              "p": "Em 1 frase: o mapa mostra que o cupom grava o desconto no pedido e que o checkout confia nesse número na hora de cobrar com uma chave fixa por pedido.",
+              "basis": "inferred"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Como funciona",
+      "steps": [
+        {
+          "title": "consumeUse: checar e incrementar num só UPDATE",
+          "asks": [
+            "Isso continua seguro com dois processos usando o mesmo arquivo do SQLite?"
+          ],
+          "blocks": [
+            {
+              "code": {
+                "file": "src/coupons/sqliteCouponRepository.ts",
+                "lines": [
+                  35,
+                  39
+                ],
+                "show": [
+                  31,
+                  40
+                ],
+                "marks": [
+                  {
+                    "line": 37,
+                    "text": "a condição do limite fica dentro do UPDATE"
+                  },
+                  {
+                    "line": 39,
+                    "text": "0 linhas mudadas = limite atingido"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "O jeito ingênuo seria ler `used_count`, comparar no TypeScript e depois gravar `+1`. Entre a leitura e a gravação cabe outra requisição, e as duas passariam. Aqui a comparação e o incremento estão no mesmo comando, e `changes === 1` diz quem ganhou.",
+              "basis": "fact"
+            },
+            {
+              "p": "Um único UPDATE é atômico no SQLite. Por isso o limite não estoura nem com chamadas concorrentes.",
+              "basis": "opinion"
+            },
+            {
+              "p": "Isso é bem feito. O nome do problema que ele evita é **check-then-act**.",
+              "basis": "opinion"
+            }
+          ]
+        },
+        {
+          "title": "A ordem dentro de apply",
+          "blocks": [
+            {
+              "code": {
+                "file": "src/coupons/couponService.ts",
+                "lines": [
+                  19,
+                  33
+                ],
+                "show": [
+                  18,
+                  35
+                ],
+                "marks": [
+                  {
+                    "line": 21,
+                    "text": "mesma regra de status do checkout"
+                  },
+                  {
+                    "line": 28,
+                    "text": "o uso é consumido antes de salvar o pedido"
+                  },
+                  {
+                    "line": 32,
+                    "text": "desconto congelado no pedido, limitado ao total"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "O desconto é copiado para o pedido no momento da aplicação. Se alguém mudar `discount_amount` na tabela `coupons` depois, os pedidos já feitos não mudam. Quem cobra é `checkout`, e ele lê só o pedido (`orderService.ts:45`).",
+              "basis": "fact"
+            },
+            {
+              "p": "O `Math.min` impede um valor cobrado negativo. O teste `caps the discount at the order total` confere isso com desconto 5000 num pedido de 3000.",
+              "basis": "fact"
+            }
+          ]
+        },
+        {
+          "title": "E se apply aceitasse PENDING_PAYMENT?",
+          "question": true,
+          "blocks": [
+            {
+              "p": "A linha 21 copia a regra do checkout: só pedidos em `CART` ou `PAYMENT_FAILED` aceitam cupom. Parece apenas consistência."
+            },
+            {
+              "p": "Imagine que alguém apague essa checagem. O cliente clica em pagar e, enquanto a cobrança está em andamento, aplica um cupom de 500. O que acontece com o pedido e com o contador do cupom? E qual teste desta mudança ficaria vermelho?"
+            }
+          ]
+        },
+        {
+          "title": "Resposta: o desconto some e nenhum teste avisa",
+          "blocks": [
+            {
+              "timeline": {
+                "lanes": [
+                  "Checkout",
+                  "Cupom",
+                  "orders (DB)",
+                  "Pagamento"
+                ],
+                "events": [
+                  {
+                    "lane": "Checkout",
+                    "to": "orders (DB)",
+                    "text": "get o1 (desconto 0) e save PENDING"
+                  },
+                  {
+                    "lane": "Checkout",
+                    "to": "Pagamento",
+                    "text": "charge 3000, chave order-o1"
+                  },
+                  {
+                    "lane": "Cupom",
+                    "to": "orders (DB)",
+                    "text": "save desconto 500; used_count +1",
+                    "mark": "note"
+                  },
+                  {
+                    "lane": "Pagamento",
+                    "to": "Checkout",
+                    "text": "ok, ch_1"
+                  },
+                  {
+                    "lane": "Checkout",
+                    "to": "orders (DB)",
+                    "text": "save PAID com o objeto antigo: desconto 0",
+                    "mark": "bad"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "O checkout guarda em memória o pedido lido antes de cobrar. No `save` final, grava todas as colunas, incluindo `coupon_code` e `discount_amount` vazios. O uso do cupom foi gasto e o desconto desaparece. Se a cobrança der timeout, o batch marca PAID só por existir uma cobrança, sem olhar o valor (`reconcilePendingPayments.ts:23-26`).",
+              "basis": "inferred"
+            },
+            {
+              "p": "Nenhum dos 4 testes de `couponService.test.ts` usa um pedido fora de `CART`. Se a linha 21 for apagada, todos continuam verdes.",
+              "basis": "fact"
+            },
+            {
+              "p": "Em 1 frase: `apply` promete que o desconto gravado é o que será cobrado, porque só mexe em pedidos cuja cobrança ainda não começou. Essa promessa hoje não tem teste.",
+              "basis": "inferred"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Onde um sênior pararia",
+      "steps": [
+        {
+          "title": "Clique duplo em \"aplicar cupom\"",
+          "question": true,
+          "blocks": [
+            {
+              "rows": {
+                "label": "estado antes dos cliques",
+                "head": [
+                  "code",
+                  "max_uses",
+                  "used_count"
+                ],
+                "data": [
+                  [
+                    "WELCOME",
+                    "100",
+                    "0"
+                  ]
+                ]
+              }
+            },
+            {
+              "p": "O pedido `o1` está em `CART`, sem cupom. O cliente clica duas vezes em \"aplicar\" com `WELCOME`, e chegam dois POST para `o1`, um depois do outro."
+            },
+            {
+              "p": "Quanto vale `used_count` no fim? E se `max_uses` fosse 1, o que o segundo clique receberia?"
+            }
+          ]
+        },
+        {
+          "title": "Resposta: o contador conta chamadas, não pedidos",
+          "asks": [
+            "Por que os dois cliques não se intercalam no meio de apply?"
+          ],
+          "blocks": [
+            {
+              "timeline": {
+                "lanes": [
+                  "Clique 1",
+                  "Clique 2",
+                  "coupons (DB)",
+                  "orders (DB)"
+                ],
+                "events": [
+                  {
+                    "lane": "Clique 1",
+                    "to": "coupons (DB)",
+                    "text": "consumeUse: 0 → 1",
+                    "mark": "ok"
+                  },
+                  {
+                    "lane": "Clique 1",
+                    "to": "orders (DB)",
+                    "text": "save o1 com WELCOME, 500"
+                  },
+                  {
+                    "lane": "Clique 2",
+                    "text": "o1 ainda em CART: passa na checagem"
+                  },
+                  {
+                    "lane": "Clique 2",
+                    "to": "coupons (DB)",
+                    "text": "consumeUse: 1 → 2",
+                    "mark": "bad"
+                  },
+                  {
+                    "lane": "Clique 2",
+                    "to": "orders (DB)",
+                    "text": "save o1 com WELCOME, 500 (igual)"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "`apply` não olha `order.couponCode` em nenhum momento (`couponService.ts:18-35`). O mesmo pedido gasta 2 usos. Com `max_uses = 1`, o segundo clique recebe 409 `coupon_used_up`, mesmo com o cupom já aplicado.",
+              "basis": "fact"
+            },
+            {
+              "p": "O mesmo acontece ao trocar o cupom A pelo B: A fica gasto para sempre, porque nada no código decrementa `used_count`. E se `consumeUse` dá certo mas o `save` falha, o uso também se perde.",
+              "basis": "fact"
+            },
+            {
+              "p": "O repositório já trata o clique duplo como caso a cuidar (comentário em `orderService.ts:37-39`). O teste de limite usa `o1` e `o2`, nunca o mesmo pedido duas vezes (`couponService.test.ts:46-51`).",
+              "basis": "fact"
+            },
+            {
+              "p": "A hipótese do capítulo 2 caiu: \"um uso\" é \"uma chamada de apply\". Peso: **obrigatório**. Mexe com dinheiro do operador e acontece só com a ação do cliente. O nome disso é **idempotência**.",
+              "basis": "inferred"
+            }
+          ]
+        },
+        {
+          "title": "Uma correção, e até onde ela protege",
+          "asks": [
+            "Contar os usos a partir dos pedidos PAID não seria mais simples?"
+          ],
+          "blocks": [
+            {
+              "snippet": {
+                "label": "Correção sugerida (não existe no repositório)",
+                "lang": "typescript",
+                "text": "// em apply, antes de consumeUse\nif (order.couponCode === code) return order; // reenvio do mesmo cupom\nif (order.couponCode) throw new CouponAlreadyAppliedError(orderId);"
+              }
+            },
+            {
+              "p": "Conferindo com os valores: o clique 2 encontra `couponCode = 'WELCOME'`, devolve 200 sem consumir, e `used_count` fica em 1. A troca A → B passa a ser recusada em vez de vazar o uso de A.",
+              "basis": "inferred"
+            },
+            {
+              "p": "O que ainda escapa: `consumeUse` dá certo, o `save` falha, e o cliente tenta de novo. Como o pedido não tem cupom, consome outra vez. Para fechar isso, `consumeUse` e `save` precisam estar na mesma transação.",
+              "basis": "inferred"
+            },
+            {
+              "p": "O repositório já tem esse padrão de transação em `db.ts:17-25`, usado nas migrações.",
+              "basis": "fact"
+            },
+            {
+              "p": "Fica uma pergunta de produto: um carrinho abandonado deve gastar um uso? Hoje gasta, porque o uso é consumido na aplicação, não no pagamento. Quem define a campanha precisa responder antes do merge."
+            }
+          ]
+        },
+        {
+          "title": "Fronteira com o pagamento: mesma chave, outro valor",
+          "asks": [
+            "Não daria para colocar o valor dentro da chave de idempotência?"
+          ],
+          "blocks": [
+            {
+              "timeline": {
+                "lanes": [
+                  "Cliente",
+                  "OrderService",
+                  "Pagamento"
+                ],
+                "events": [
+                  {
+                    "lane": "OrderService",
+                    "to": "Pagamento",
+                    "text": "charge 3000, chave order-o1"
+                  },
+                  {
+                    "lane": "Pagamento",
+                    "to": "OrderService",
+                    "text": "402 recusado → PAYMENT_FAILED"
+                  },
+                  {
+                    "lane": "Cliente",
+                    "to": "OrderService",
+                    "text": "aplica cupom de 500 (permitido)"
+                  },
+                  {
+                    "lane": "OrderService",
+                    "to": "Pagamento",
+                    "text": "charge 2500, mesma chave order-o1",
+                    "mark": "note"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "Isso não existia no main: agora a mesma chave pode ir com valores diferentes. A regra de status de `apply` permite exatamente esse caminho (`couponService.ts:21`).",
+              "basis": "fact"
+            },
+            {
+              "p": "Um cupom do valor total gera uma cobrança de 0 iene. O teste `caps the discount` produz exatamente isso: desconto 3000 num pedido de 3000.",
+              "basis": "fact"
+            },
+            {
+              "p": "Se o serviço responder a qualquer um dos casos com um 4xx que não seja 402, `httpGateway.ts:35-37` lança um `Error` genérico. O pedido fica em PENDING_PAYMENT, o cliente recebe 500, o batch marca PAYMENT_FAILED, e a próxima tentativa repete o ciclo.",
+              "basis": "inferred"
+            },
+            {
+              "p": "O que o serviço faz com chave repetida e valor diferente, e se ele aceita 0, não está no repositório. Peso: **pergunta**. Alguém precisa conferir a especificação do provedor antes do merge, e decidir se 0 iene deve nem chegar a chamar `charge`."
+            }
+          ]
+        },
+        {
+          "title": "expires_at: texto livre e falha aberta",
+          "asks": [
+            "Date com NaN não lança erro em JavaScript?"
+          ],
+          "blocks": [
+            {
+              "code": {
+                "file": "src/coupons/sqliteCouponRepository.ts",
+                "lines": [
+                  27,
+                  27
+                ],
+                "show": [
+                  22,
+                  28
+                ],
+                "marks": [
+                  {
+                    "line": 27,
+                    "text": "qualquer texto vira Date, até inválido"
+                  }
+                ]
+              }
+            },
+            {
+              "code": {
+                "file": "src/coupons/couponService.ts",
+                "lines": [
+                  27,
+                  27
+                ],
+                "show": [
+                  25,
+                  28
+                ],
+                "marks": [
+                  {
+                    "line": 27,
+                    "text": "Invalid Date \u003c= agora é sempre false"
+                  }
+                ]
+              }
+            },
+            {
+              "p": "A coluna é `expires_at TEXT NOT NULL`, sem nenhuma verificação de formato (`002_add_coupons.sql:6`).",
+              "basis": "fact"
+            },
+            {
+              "p": "Se alguém gravar `31/12/2026`, `new Date` dá Invalid Date. A comparação com NaN dá false, e o cupom **nunca expira**. Com `2026-12-31` sem hora, a data vira meia-noite UTC, ou seja, 9h do dia 31 no Japão: o cupom morre na manhã do último dia.",
+              "basis": "inferred"
+            },
+            {
+              "p": "Peso: **sugestão**. Rejeitar datas inválidas em `get` (falhar fechado), adicionar um CHECK de formato e escrever no comentário que é um instante em UTC.",
+              "basis": "opinion"
+            }
+          ]
+        },
+        {
+          "title": "Os outros achados, com peso",
+          "blocks": [
+            {
+              "table": {
+                "head": [
+                  "Peso",
+                  "Achado",
+                  "Onde"
+                ],
+                "rows": [
+                  [
+                    "Sugestão",
+                    "`orders.discount_amount` sem CHECK (0 ≤ desconto ≤ total). O 001 protege `total_amount` com CHECK e explica por quê",
+                    "002_add_coupons.sql:10, 001_create_orders.sql:4-5"
+                  ],
+                  [
+                    "Sugestão",
+                    "JSON inválido vira 500 em vez de 400. O corpo não tem limite de tamanho",
+                    "server.ts:9-13, 27-29"
+                  ],
+                  [
+                    "Sugestão",
+                    "Faltam testes: status em apply, mesmo pedido 2×, borda `\u003c=` da expiração, handler",
+                    "test/couponService.test.ts"
+                  ],
+                  [
+                    "Sugestão",
+                    "Voltar para o main mantém as colunas, mas o checkout antigo cobra o total cheio de quem já tem cupom",
+                    "orderService.ts:45 (base)"
+                  ],
+                  [
+                    "Nit",
+                    "CouponService depende da classe Sqlite concreta. OrderService usa interface",
+                    "couponService.ts:5, 8"
+                  ],
+                  [
+                    "Nit",
+                    "`InvalidOrderStateError` diz \"cannot be checked out\" no fluxo de cupom",
+                    "orderService.ts:16"
+                  ]
+                ]
+              }
+            },
+            {
+              "p": "O código vindo do usuário está bem tratado: `applyCoupon.ts:7-10` recusa `null`, array, número e string vazia antes de chegar ao serviço.",
+              "basis": "fact"
+            }
+          ]
+        },
+        {
+          "title": "O que não precisa preocupar, e onde confirmei",
+          "asks": [
+            "Se trocar para Postgres, onde exatamente a corrida apareceria?"
+          ],
+          "blocks": [
+            {
+              "p": "Corrida entre apply e checkout: hoje não acontece. Tudo em `apply` é SQLite síncrono, então a função roda até o fim sem ceder a vez para outra requisição. O checkout só cede no `fetch`, já depois de gravar PENDING, e aí `apply` recusa.",
+              "basis": "inferred"
+            },
+            {
+              "p": "Mas isso funciona por acaso, não por garantia: a interface devolve Promise (`orderRepository.ts:3-7`). Com um banco de verdade assíncrono, a janela entre ler e gravar se abre.",
+              "basis": "fact"
+            },
+            {
+              "p": "A FK `coupon_code REFERENCES coupons` está ativa de verdade: `db.ts:10` liga `foreign_keys`.",
+              "basis": "fact"
+            },
+            {
+              "p": "O batch não precisa conhecer o desconto: ela só pergunta se a cobrança existe (`reconcilePendingPayments.ts:22-31`).",
+              "basis": "fact"
+            },
+            {
+              "p": "Nenhuma rota do main tem autenticação, nem o checkout. Isso não é desta mudança e deve ser tratado à parte.",
+              "basis": "fact"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Resumo",
+      "steps": [
+        {
+          "title": "Veredito e comentários",
+          "blocks": [
+            {
+              "p": "A direção é boa e a base técnica é sólida: contador atômico, desconto congelado, inteiros em iene, testes com SQLite real. Mas, do jeito que está, o limite de usos não limita pedidos. Com a correção obrigatória, a mudança melhora o código; sem ela, não deveria entrar.",
+              "basis": "inferred"
+            },
+            {
+              "list": [
+                "**Obrigatório**: `apply` consome um uso a cada chamada. Clique duplo ou troca de cupom gastam usos sem pedido. Sugestão: devolver sem consumir se for o mesmo código, recusar se já houver outro, e pôr `consumeUse` e `save` numa transação.",
+                "**Pergunta**: o provedor de pagamento aceita a mesma chave `order-\u003cid\u003e` com outro valor, depois de uma recusa? E aceita 0 iene? Alguém precisa conferir a especificação antes do merge.",
+                "**Sugestão**: validar `expires_at` (falhar fechado se a data for inválida) e pôr CHECK em `orders.discount_amount`, como o 001 faz com o total.",
+                "**Ponto positivo**: `consumeUse` com a condição dentro do UPDATE. É o jeito certo de impedir que o limite estoure."
+              ]
+            }
+          ]
+        },
+        {
+          "title": "O que você praticou",
+          "blocks": [
+            {
+              "list": [
+                "Escrever uma hipótese (\"um uso = um pedido\") antes de ler, e derrubá-la com valores concretos",
+                "Pular para fora do diff (chave de idempotência, batch) porque a linha nova depende deles",
+                "Ver que uma operação atômica protege o limite, mas não o significado do que está sendo contado",
+                "Separar o que o código decide (fact) do que depende do provedor (pergunta)",
+                "Perguntar \"que teste fica vermelho se eu apagar esta linha?\"",
+                "Dizer onde confirmou que algo é seguro, e quando é seguro só por acaso"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

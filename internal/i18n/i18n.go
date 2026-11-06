@@ -17,10 +17,12 @@ const (
 	ZHHant Lang = "zh-Hant"
 	ES     Lang = "es"
 	RU     Lang = "ru"
+	// PTBR is Brazilian Portuguese (other Portuguese locales get it too).
+	PTBR Lang = "pt-BR"
 )
 
 // Langs lists the supported languages. It is also the order of the choices.
-var Langs = []Lang{EN, JA, ZH, ZHHant, ES, RU}
+var Langs = []Lang{EN, JA, ZH, ZHHant, ES, RU, PTBR}
 
 func (l Lang) Name() string {
 	switch l {
@@ -34,6 +36,8 @@ func (l Lang) Name() string {
 		return "Español"
 	case RU:
 		return "Русский"
+	case PTBR:
+		return "Português (Brasil)"
 	default:
 		return "English"
 	}
@@ -41,6 +45,9 @@ func (l Lang) Name() string {
 
 func Parse(s string) (Lang, bool) {
 	if l, ok := chinese(s); ok {
+		return l, true
+	}
+	if l, ok := portuguese(s); ok {
 		return l, true
 	}
 	for _, l := range Langs {
@@ -95,6 +102,15 @@ func chinese(s string) (Lang, bool) {
 		}
 	}
 	return ZH, true
+}
+
+// portuguese reads a Portuguese language tag or locale such as pt, pt-BR or pt_PT. All of them get PTBR.
+func portuguese(s string) (Lang, bool) {
+	parts := strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return r == '-' || r == '_' })
+	if len(parts) == 0 || parts[0] != "pt" {
+		return "", false
+	}
+	return PTBR, true
 }
 
 // T returns the message for the current language, falling back to English if that language lacks it.
@@ -746,5 +762,109 @@ var messages = map[Lang]map[string]string{
 		"setup.none":             "Пока нет ни одной доступной LLM. Выбрать её можно позже: `tour setup`.",
 		"setup.keys":             "↑↓ Выбрать   Enter Подтвердить   ← Назад   q Выход",
 		"setup.saved":            "Настройки сохранены в %s",
+	},
+	PTBR: {
+		"key.back":               "← Voltar",
+		"key.next":               "→ Próximo",
+		"key.last":               "Último passo",
+		"key.open":               "o Abrir no editor",
+		"key.quit":               "q Sair",
+		"scroll.more":            "▼ Tem mais  ↑↓",
+		"scroll.top":             "▲ ↑↓",
+		"chapter":                "Cap. %d  %s",
+		"question":               "Pergunta",
+		"think":                  "Pense um pouco e aperte → para ver a resposta",
+		"basis.fact":             "Verificado",
+		"basis.inferred":         "Pelo código",
+		"basis.opinion":          "Visão sênior",
+		"tag.example":            "Exemplo",
+		"diff.summary":           "diff  +%d −%d",
+		"schema.title":           "Esquema",
+		"schema.desc":            "%s aplicado em %s e em %s",
+		"schema.newTable":        "tabela nova",
+		"change.added":           "adicionado",
+		"change.removed":         "removido",
+		"change.changed":         "alterado",
+		"change.same":            "sem alterações",
+		"schema.column":          "Coluna",
+		"schema.type":            "Tipo",
+		"schema.constraints":     "Restrições",
+		"schema.index":           "índice",
+		"schema.unique":          "índice único",
+		"rows.added":             "As colunas em verde foram adicionadas por esta mudança",
+		"target.branched":        "  (criada a partir de %s)",
+		"target.summary":         "%d commits · %d arquivos alterados (+%d −%d)",
+		"err.fileNotFound":       "Arquivo não encontrado: %s (%s)",
+		"err.lineRange":          "Linhas fora do intervalo: %s L%d–%d (o arquivo tem %d linhas)",
+		"err.noDiff":             "Diff não encontrado: %s",
+		"err.noHunk":             "Trecho não encontrado: %s %v",
+		"err.noTable":            "Tabela não encontrada: %s",
+		"err.unsafeSQL":          "Não executado por segurança: %s",
+		"err.migration":          "Não foi possível aplicar a migration: %s (%v)",
+		"err.schema":             "Não foi possível ler o esquema: %v",
+		"editor.copy":            "Foi aberta uma cópia somente leitura: o diretório de trabalho é diferente de %s",
+		"editor.fail":            "Não foi possível abrir o editor: %v",
+		"needTTY":                "o tour precisa ser executado em um terminal",
+		"picker.title":           "De qual mudança você quer um tour?",
+		"picker.uncommitted":     "mudanças sem commit",
+		"picker.uncommittedNote": "inclui mudanças sem commit",
+		"picker.current":         "branch atual",
+		"picker.commits":         "%d commits",
+		"picker.cached":          "pronto",
+		"picker.advanced":        "Para um commit ou um intervalo: tour <ref>  /  tour <base>..<head>",
+		"picker.info":            "Comparado com %s · Os tours são escritos por %s (mude com tour setup)",
+		"picker.keys":            "↑↓ Escolher   Enter Começar   q Sair",
+		"picker.empty":           "Nenhuma branch local tem commits que não estejam em %s.",
+		"time.now":               "agora mesmo",
+		"time.minutes":           "há %d min",
+		"time.hours":             "há %d horas",
+		"time.days":              "há %d dias",
+		"gen.title":              "Escrevendo um tour de %s (a partir de %s)",
+		"gen.reading":            "%s está lendo o código (%s)",
+		"flow.changed":           "alterado",
+		"flow.new":               "novo",
+		"role.core":              "núcleo",
+		"role.mechanical":        "mecânico",
+		"role.test":              "teste",
+		"role.config":            "configuração",
+		"role.docs":              "documentação",
+		"err.noChanges":          "nenhum arquivo alterado",
+		"key.ask":                "? Perguntar",
+		"asked":                  "Sua pergunta",
+		"ask.title":              "Pergunte sobre este passo",
+		"ask.help":               "↑↓ escolher · digite a sua · Enter perguntar · Esc fechar",
+		"ask.placeholder":        "Digite uma pergunta…",
+		"ask.question":           "P:",
+		"ask.answering":          "%s está lendo o código para responder (%s)",
+		"ask.added":              "A resposta é o próximo passo ($%.2f)",
+		"ask.notSaved":           "Não foi possível salvar a resposta: %v",
+		"ask.failed":             "Não foi possível responder: %s",
+		"ask.canceled":           "cancelado",
+		"ask.unavailable":        "Para fazer perguntas, escolha um LLM com tour setup",
+		"gen.repairing":          "Corrigindo problemas no tour (tentativa %d de %d, %s)",
+		"gen.files":              "Arquivos lidos: %d",
+		"gen.search":             "busca: %s",
+		"gen.note":               "Isso costuma levar de 2 a 5 minutos. O tour fica salvo, então da próxima vez ele abre na hora.",
+		"gen.keys":               "q Cancelar",
+		"gen.saved":              "Tour salvo (cerca de $%.2f a preços de API)",
+		"gen.failed":             "Não foi possível escrever o tour",
+		"gen.failKeys":           "q Sair",
+		"err.noLLM":              "Nenhum LLM foi escolhido. Rode tour setup para escolher um.",
+		"err.unsupported":        "%s não é compatível. Escolha outro LLM com tour setup.",
+		"err.notRepo":            "Não é um repositório git: %s",
+		"err.badRef":             "Commit ou branch desconhecido: %s",
+		"err.noBase":             "Não foi encontrada uma branch para comparar (main, master, ...). Use tour <base>..<head>.",
+		"setup.welcome":          "Boas-vindas ao tour. Antes de começar, duas escolhas rápidas.",
+		"setup.lang":             "Idioma",
+		"setup.detected":         "detectado a partir de %s",
+		"setup.llm":              "LLM que escreve os tours",
+		"setup.found":            "encontrado",
+		"setup.notFound":         "não instalado",
+		"setup.needsV2":          "precisa do OpenCode 2 (este é o OpenCode 1)",
+		"setup.piVersion":        "precisa do Pi 1.5 ou de uma 1.x posterior (esta versão não é compatível)",
+		"setup.sendsCode":        "O código do repositório do qual você fizer um tour será enviado ao LLM escolhido.",
+		"setup.none":             "Ainda não há nenhum LLM disponível. Você pode escolher um depois com `tour setup`.",
+		"setup.keys":             "↑↓ Escolher   Enter Confirmar   ← Voltar   q Sair",
+		"setup.saved":            "Configurações salvas em %s",
 	},
 }
