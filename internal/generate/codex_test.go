@@ -67,7 +67,11 @@ func TestCodexReadablePaths(t *testing.T) {
 }
 
 func TestFindExecutable(t *testing.T) {
-	real := t.TempDir()
+	// The temporary directory can itself be under a link (/var is /private/var on macOS).
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	bin := t.TempDir()
 	t.Setenv("PATH", bin)
 	for _, c := range []struct {
@@ -80,7 +84,9 @@ func TestFindExecutable(t *testing.T) {
 		{"shim", "#!/bin/sh\nexec mise x codex -- codex \"$@\"\n", false},
 	} {
 		target := filepath.Join(real, c.name)
-		os.WriteFile(target, []byte(c.head), 0o755)
+		if err := os.WriteFile(target, []byte(c.head), 0o755); err != nil {
+			t.Fatal(err)
+		}
 		link := filepath.Join(bin, c.name)
 		if err := os.Symlink(target, link); err != nil {
 			t.Skip(err)
