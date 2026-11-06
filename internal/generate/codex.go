@@ -133,7 +133,10 @@ func isNativeBinary(path string) bool {
 	return false
 }
 
-// findExecutable returns bin's path on PATH and its real path with symlinks followed.
+// findExecutable returns the path to run bin from and its real path with symlinks followed.
+// A native binary is run from its real path: the sandbox lets it read that, and on macOS it cannot re-run
+// itself inside the sandbox through a symlink (Homebrew's /opt/homebrew/bin/codex). Anything else keeps
+// its path on PATH, as a shim needs its own name.
 func findExecutable(bin string) (path, real string, err error) {
 	if path, err = exec.LookPath(bin); err != nil {
 		return "", "", err
@@ -141,8 +144,13 @@ func findExecutable(bin string) (path, real string, err error) {
 	if path, err = filepath.Abs(path); err != nil {
 		return "", "", err
 	}
-	real, err = filepath.EvalSymlinks(path)
-	return path, real, err
+	if real, err = filepath.EvalSymlinks(path); err != nil {
+		return "", "", err
+	}
+	if isNativeBinary(real) {
+		path = real
+	}
+	return path, real, nil
 }
 
 // sandboxBroken is the output of a command when the sandbox could not start (see codexReadablePaths).
@@ -213,7 +221,7 @@ func (c Codex) Run(ctx context.Context, dir, prompt string, events func(Event)) 
 	if bin == "" {
 		bin = "codex"
 	}
-	// Run what is on PATH (a shim needs its own name), but grant what it really is.
+	// Run a native binary from where it really is and a shim by its name on PATH, but grant what it really is.
 	path, real, err := findExecutable(bin)
 	if err != nil {
 		return Result{}, err

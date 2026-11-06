@@ -66,6 +66,44 @@ func TestCodexReadablePaths(t *testing.T) {
 	}
 }
 
+func TestFindExecutable(t *testing.T) {
+	real := t.TempDir()
+	bin := t.TempDir()
+	t.Setenv("PATH", bin)
+	for _, c := range []struct {
+		name, head string
+		native     bool
+	}{
+		{"elf", "\x7fELF...", true},
+		{"macho", "\xcf\xfa\xed\xfe...", true},
+		{"universal", "\xca\xfe\xba\xbe...", true},
+		{"shim", "#!/bin/sh\nexec mise x codex -- codex \"$@\"\n", false},
+	} {
+		target := filepath.Join(real, c.name)
+		os.WriteFile(target, []byte(c.head), 0o755)
+		link := filepath.Join(bin, c.name)
+		if err := os.Symlink(target, link); err != nil {
+			t.Skip(err)
+		}
+		path, got, err := findExecutable(c.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != target {
+			t.Errorf("%s: real = %q, want %q", c.name, got, target)
+		}
+		// A native binary is run from where it really is (Homebrew's link is blocked by the sandbox on macOS);
+		// a script keeps the name it was found by.
+		want := link
+		if c.native {
+			want = target
+		}
+		if path != want {
+			t.Errorf("%s: path = %q, want %q", c.name, path, want)
+		}
+	}
+}
+
 // Lines recorded from codex-cli 0.160.1 `codex exec --json` (paths shortened).
 const codexSample = `{"type":"thread.started","thread_id":"01a12672-35b4-7341-9e8f-bedf520d2ccd"}
 {"type":"item.completed","item":{"id":"item_0","type":"error","message":"Codex is ignoring 1 unrecognized configuration setting."}}
