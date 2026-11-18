@@ -226,6 +226,14 @@ OS と CPU に合う最新のリリースを落とし、`checksums.txt` と照�
 curl -fsSL https://raw.githubusercontent.com/init-co-jp/diff-tour/main/install.sh | TOUR_INSTALL_DIR=/usr/local/bin TOUR_VERSION=v0.1.0 sh
 ```
 
+**Homebrew を使う場合**（macOS と Linux）
+
+```sh
+brew install init-co-jp/tap/diff-tour
+```
+
+`brew upgrade` で最新のリリースに上がります。
+
 **Go 1.27 以上がある場合**（どの OS でも）
 
 ```sh

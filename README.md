@@ -226,6 +226,14 @@ This downloads the latest release for your OS and CPU, checks it against `checks
 curl -fsSL https://raw.githubusercontent.com/init-co-jp/diff-tour/main/install.sh | TOUR_INSTALL_DIR=/usr/local/bin TOUR_VERSION=v0.1.0 sh
 ```
 
+**With Homebrew** (macOS and Linux)
+
+```sh
+brew install init-co-jp/tap/diff-tour
+```
+
+`brew upgrade` updates it to the latest release.
+
 **With Go 1.27 or later** (any OS)
 
 ```sh
