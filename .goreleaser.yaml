@@ -36,16 +36,19 @@ checksum:
   name_template: checksums.txt
 
 # brew install init-co-jp/tap/diff-tour
-# Needs the HOMEBREW_TAP_GITHUB_TOKEN secret (a token that can push to init-co-jp/homebrew-tap);
-# without it the release still succeeds and the cask is not updated.
+# Needs the HOMEBREW_TAP_SSH_KEY secret (the private half of a deploy key with write access on
+# init-co-jp/homebrew-tap); without it the release still succeeds and the cask is not updated.
 homebrew_casks:
   - name: diff-tour
     binaries: [tour]
     repository:
       owner: init-co-jp
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_GITHUB_TOKEN "" }}true{{ else }}false{{ end }}'
+      branch: main
+      git:
+        url: git@github.com:init-co-jp/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_SSH_KEY }}"
+    skip_upload: '{{ if eq .Env.HOMEBREW_TAP_SSH_KEY "" }}true{{ else }}false{{ end }}'
     homepage: https://github.com/init-co-jp/diff-tour
     description: Walk through a diff the way a senior engineer reads it
     license: MIT
@@ -55,9 +58,9 @@ homebrew_casks:
     hooks:
       post:
         # The binaries are not notarized, so remove the quarantine flag macOS sets on downloads
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tour"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/tour"]
           end
 
 changelog:
